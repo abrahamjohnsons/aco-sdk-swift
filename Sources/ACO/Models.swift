@@ -1,5 +1,22 @@
 import Foundation
 
+// MARK: - Subscription Status
+
+/// The user's current subscription state. Set via `ACO.shared.subscriptionStatus`.
+public enum ACOSubscriptionStatus {
+    /// No active subscription.
+    case inactive
+    /// Active subscription with an optional product identifier.
+    case active(productId: String?)
+    /// Not yet determined (default).
+    case unknown
+
+    public var isActive: Bool {
+        if case .active = self { return true }
+        return false
+    }
+}
+
 // MARK: - SDK API Response
 
 struct SDKConfig: Codable {

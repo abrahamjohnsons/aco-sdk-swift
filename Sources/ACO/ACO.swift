@@ -22,6 +22,7 @@ public final class ACO {
     private var config: ACOConfig?
     private var cachedConfig: SDKConfig?
     private var fetchTask: Task<SDKConfig?, Never>?
+    private var userAttributes: [String: Any] = [:]
 
     public static func configure(
         projectId: String,
@@ -125,6 +126,64 @@ public final class ACO {
             eventName: "flow_completed",
             flowId: flowId
         ))
+    }
+
+    // MARK: - Identity
+
+    /// Associate the current user and set attributes. Call after sign-in.
+    ///
+    /// ```swift
+    /// ACO.identify(userId: user.id, attributes: ["plan": "free", "source": "tiktok"])
+    /// ```
+    public static func identify(userId: String, attributes: [String: Any] = [:]) {
+        shared.config = shared.config.map { config in
+            ACOConfig(
+                projectId: config.projectId,
+                sdkKey: config.sdkKey,
+                userId: userId,
+                apiBaseURL: config.apiBaseURL,
+                debug: config.debug
+            )
+        }
+        shared.userAttributes.merge(attributes) { _, new in new }
+        // Invalidate cache so next fetch picks up the new userId
+        shared.cachedConfig = nil
+    }
+
+    /// Merge additional attributes into the current user profile without
+    /// resetting the user identity.
+    ///
+    /// ```swift
+    /// ACO.setUserAttributes(["plan": "pro", "trialing": true])
+    /// ```
+    public static func setUserAttributes(_ attributes: [String: Any]) {
+        shared.userAttributes.merge(attributes) { _, new in new }
+    }
+
+    /// The user's current subscription status. Set this after verifying a
+    /// purchase so personalization rules can target subscribers.
+    ///
+    /// ```swift
+    /// ACO.shared.subscriptionStatus = .active(productId: "com.app.pro_monthly")
+    /// ```
+    public var subscriptionStatus: ACOSubscriptionStatus = .unknown
+
+    // MARK: - Reset
+
+    /// Clear user identity and attributes on sign-out.
+    public static func reset() {
+        shared.config = shared.config.map { config in
+            ACOConfig(
+                projectId: config.projectId,
+                sdkKey: config.sdkKey,
+                userId: "anonymous",
+                apiBaseURL: config.apiBaseURL,
+                debug: config.debug
+            )
+        }
+        shared.userAttributes = [:]
+        shared.subscriptionStatus = .unknown
+        shared.cachedConfig = nil
     }
 
     // MARK: - Utilities
