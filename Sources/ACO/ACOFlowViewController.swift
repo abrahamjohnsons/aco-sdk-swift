@@ -226,8 +226,21 @@ public final class ACOFlowViewController: UIViewController {
 
         case "options", "quiz_option":
             let quizKey = props["quizKey"]?.stringValue ?? screen.metadata?.quizKey ?? "answer"
-            let options = screen.metadata?.quizOptions ?? []
             let multiSelect = screen.metadata?.multiSelect ?? false
+            // Options come from metadata.quizOptions OR (more commonly) props["options"]
+            var options = screen.metadata?.quizOptions ?? []
+            if options.isEmpty, let rawOptions = props["options"]?.arrayValue as? [[String: Any]] {
+                options = rawOptions.compactMap { d in
+                    guard let id = d["id"] as? String, let label = d["label"] as? String else { return nil }
+                    return QuizOption(
+                        id: id,
+                        label: label,
+                        value: (d["value"] as? String) ?? id,
+                        icon: (d["emoji"] as? String) ?? (d["icon"] as? String),
+                        description: d["description"] as? String
+                    )
+                }
+            }
             return makeOptionsStack(quizKey: quizKey, options: options, multiSelect: multiSelect)
 
         // ── Lists ─────────────────────────────────────────────────────────────
@@ -238,7 +251,7 @@ public final class ACOFlowViewController: UIViewController {
                 if let s = item as? String { return ("✓", s) }
                 if let d = item as? [String: Any] {
                     let text = (d["text"] as? String) ?? (d["label"] as? String) ?? ""
-                    let icon = (d["icon"] as? String) ?? "✓"
+                    let icon = (d["emoji"] as? String) ?? (d["icon"] as? String) ?? "✓"
                     return (icon, text)
                 }
                 return nil
